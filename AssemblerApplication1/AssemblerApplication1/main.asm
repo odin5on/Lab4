@@ -78,30 +78,30 @@ ldi LCDin, 0b00000110 ; set character entry mode
 rcall load_LCD
 
 
-; load E on display
+; load characters on display
 sbi PORTB, 5
 rcall timer_delay_100ms
-ldi LCDin, 0x2a
+ldi LCDin, 0x2a ; *
 rcall load_LCD
 
 sbi PORTB, 5
 rcall timer_delay_100ms
-ldi LCDin, 0x48
+ldi LCDin, 0x48 ; H
 rcall load_LCD
 
 sbi PORTB, 5
 rcall timer_delay_100ms
-ldi LCDin, 0x69
+ldi LCDin, 0x69 ; i
 rcall load_LCD
 
 sbi PORTB, 5
 rcall timer_delay_100ms
-ldi LCDin, 0x21
+ldi LCDin, 0x21 ; !
 rcall load_LCD
 
 looop:
-nop
-rjmp looop
+	nop
+	rjmp looop
 
 
 load_LCD:
@@ -116,10 +116,10 @@ load_LCD:
 		ret
 
 load_LCD_1strobe:
-	out PORTC, LCDin
-	rcall LCDStrobe
-	rcall timer_delay_200us
-	ret
+		out PORTC, LCDin
+		rcall LCDStrobe
+		rcall timer_delay_200us
+		ret
 	
 LCDStrobe:
 		sbi PORTB, 3
