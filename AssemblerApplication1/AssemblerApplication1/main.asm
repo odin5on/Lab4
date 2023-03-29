@@ -84,6 +84,21 @@ rcall timer_delay_100ms
 ldi LCDin, 0x2a
 rcall load_LCD
 
+sbi PORTB, 5
+rcall timer_delay_100ms
+ldi LCDin, 0x48
+rcall load_LCD
+
+sbi PORTB, 5
+rcall timer_delay_100ms
+ldi LCDin, 0x69
+rcall load_LCD
+
+sbi PORTB, 5
+rcall timer_delay_100ms
+ldi LCDin, 0x21
+rcall load_LCD
+
 looop:
 nop
 rjmp looop
