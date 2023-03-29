@@ -65,73 +65,20 @@ ldi LCDin, 0b00000010 ; set 4bit mode
 rcall load_LCD_1strobe
 
 
-/*ldi LCDin, 0b00000010 ; first part of function set
-rcall load_LCD_1strobe
-
-ldi LCDin, 0b00001000 ; second part of function set
-rcall load_LCD_1strobe*/
-
-ldi LCDin, 0b00101000
+ldi LCDin, 0b00101000 ; function set
 rcall load_LCD
 
-ldi LCDin, 0b00000000 ; first part of set display and cursor underline
-rcall load_LCD_1strobe
-
-ldi LCDin, 0b00001110 ; second part of set display and cursor underline on
-rcall load_LCD_1strobe
-
-
-ldi LCDin, 0b00000000 ; first part of clear display
-rcall load_LCD_1strobe
-
-ldi LCDin, 0b00000001 ; second part of clear display
-rcall load_LCD_1strobe
-
-
-ldi LCDin, 0b00000000 ; first part of character entry mode
-rcall load_LCD_1strobe
-
-ldi LCDin, 0b00000110 ; second part of character entry mode
-rcall load_LCD_1strobe
-
-; LCD config
-/*cbi PINB, 5
-cbi PINB, 3
-rcall timer_delay_100ms
-ldi LCDin, 0x03
-out PORTC, LCDin
-rcall LCDStrobe
-rcall timer_delay_4ms
-rcall timer_delay_4ms
-ldi LCDin, 0x03
-out PORTC, LCDin
-rcall LCDStrobe
-rcall timer_delay_200us
-ldi LCDin, 0x03
-out PORTC, LCDin
-rcall LCDStrobe
-rcall timer_delay_200us
-ldi LCDin, 0x02
-out PORTC, LCDin
-rcall LCDStrobe
-rcall timer_delay_4ms
-rcall timer_delay_4ms
-ldi LCDin, 0x28 ; function set
+ldi LCDin, 0b00001110 ; set display and cursor underline on
 rcall load_LCD
-ldi LCDin, 0x08	; display on and cursor
+
+ldi LCDin, 0b00000001 ; clear display
 rcall load_LCD
-rcall timer_delay_4ms
-ldi LCDin, 0x01 ; clear display
+
+ldi LCDin, 0b00000110 ; set character entry mode
 rcall load_LCD
-rcall timer_delay_4ms
-ldi LCDin, 0x06 ; charater entry mode
-rcall load_LCD
-ldi LCDin, 0x0C ; display on
-rcall load_LCD
-rcall timer_delay_4ms*/
+
 
 ; load E on display
-
 sbi PORTB, 5
 rcall timer_delay_100ms
 ldi LCDin, 0x2a
