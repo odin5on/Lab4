@@ -17,12 +17,22 @@ jmp isr_pcint0
 ;;;;;;;;;;;;;;;;;;;;;;;;CONFIGURATION;;;;;;;;;;;;;;;;;;;;;;;;;;;
 .org INT_VECTORS_SIZE
 
+dcmessage: .db "DC ="
+fanOn: .db "FAN:  ON"
+fanOff: .db "FAN: OFF"
+
 main:
 .def LCDin = R16
 .def fanState = R18
 	ldi fanState, 0x01 ;fanState controls on/off
 .def fanspd = R17
 	ldi fanspd, 0x00 ;8c
+.def upperdigit = R26
+	ldi upperdigit, 9
+.def lowerdigit = R27
+	ldi lowerdigit, 9
+.def updateDisplay = R20
+	ldi updateDisplay, 0x00
 
 ; interupt control register config
 ldi R28, 0b00000111
@@ -106,30 +116,13 @@ rcall load_LCD
 
 sei ; enable interupts
 
-
-; load characters on display
-sbi PORTB, 5
-rcall timer_delay_100ms
-ldi LCDin, 0x2a ; *
-rcall load_LCD
-
-sbi PORTB, 5
-rcall timer_delay_100ms
-ldi LCDin, 0x48 ; H
-rcall load_LCD
-
-sbi PORTB, 5
-rcall timer_delay_100ms
-ldi LCDin, 0x69 ; i
-rcall load_LCD
-
-sbi PORTB, 5
-rcall timer_delay_100ms
-ldi LCDin, 0x21 ; !
-rcall load_LCD
+	rcall update_display
 
 looop:
-	nop
+	rcall timer_delay_100ms
+	ldi R28, 0x00
+	cpse updateDisplay, R28
+		rcall update_display
 	rjmp looop
 
 
@@ -166,40 +159,185 @@ LCDStrobe:
 
 
 inc_fan_speed:
-		; dont let go below 0
+		cpi fanspd, 0
+		breq inc_fan_speed_end
 		dec fanspd
+		dec fanspd
+		rcall inc_duty_cycle_value
 		sts OCR2B, fanspd
+	inc_fan_speed_end:
 		ret
 dec_fan_speed:
+		cpi fanspd, 0xC8
+		breq dec_fan_speed_end
 		inc fanspd
+		inc fanspd
+		rcall dec_duty_cycle_value
 		sts OCR2B, fanspd
+	dec_fan_speed_end:
 		ret
 
 
 turn_fan_off:
+		push R28
+		in R28, SREG
+		push R28
+
 		ldi R28, 0xC8
 		sts OCR2B, R28
 		ldi fanState, 0x00
+		
+		pop R28
+		out SREG, R28
+		pop R28
 		ret
 
 turn_fan_on:
+		push R28
+		in R28, SREG
+		push R28
+
 		sts OCR2B, fanspd
 		ldi fanState, 0x01
+
+		pop R28
+		out SREG, R28
+		pop R28
 		ret
 
 
+update_display:
+		cbi PORTB, 5
+		rcall timer_delay_100ms
+		ldi LCDin, 0b00000001 ; clear display
+		rcall load_LCD
+
+		sbi PORTB,5
+		rcall timer_delay_100ms
+		ldi ZH, HIGH(dcmessage<<1)
+		ldi ZL, LOW(dcmessage<<1)
+		ldi R29, 4
+		display_duty_cycle_loop:
+		lpm LCDin, Z
+		rcall load_LCD
+		adiw zh:zl, 1
+		dec R29
+		brne display_duty_cycle_loop
+
+		ldi LCDin, 0x20 ; space
+		rcall load_LCD
+
+		ldi R28, 48
+		add upperdigit, R28
+		add lowerdigit, R28
+		mov LCDin, upperdigit
+		rcall load_LCD
+		mov LCDin, lowerdigit
+		rcall load_LCD
+		sub upperdigit, R28
+		sub lowerdigit, R28
+
+		ldi LCDin, 0x25
+		rcall load_LCD
+
+		cbi PORTB, 5
+		rcall timer_delay_100ms
+		ldi LCDin, 0b11000000 ; write to second line of display
+		rcall load_LCD
+
+		sbi PORTB,5
+		rcall timer_delay_100ms
+
+		ldi R24, 8
+		cpi fanState, 0
+		breq display_fan_off
+		ldi ZH, HIGH(fanOn<<1)
+		ldi ZL, LOW(fanOn<<1)
+		rjmp display_fan_loop
+	display_fan_off:
+		ldi ZH, HIGH(fanOff<<1)
+		ldi ZL, LOW(fanOff<<1)
+	display_fan_loop:
+		lpm LCDin, Z
+		rcall load_LCD
+		adiw zh:zl, 1
+		dec R24
+		brne display_fan_loop
+
+		ldi updateDisplay, 0x00
+		ret
+
+inc_duty_cycle_value:
+		push R22
+		in R22, SREG
+		push R22
+
+		ldi R22, 9
+		cpse lowerdigit, R22
+			rjmp inc_lower_digit
+		cpse upperdigit, R22
+			rjmp inc_upper_digit
+		rjmp end_inc_duty_cycle
+	inc_upper_digit:
+		inc upperdigit
+		ldi lowerdigit, 0
+		rjmp end_inc_duty_cycle
+	inc_lower_digit:
+		inc lowerdigit
+		rjmp end_inc_duty_cycle
+
+	end_inc_duty_cycle:
+		pop R22
+		out SREG, R22
+		pop R22
+		ret
+
+dec_duty_cycle_value:
+		push R22
+		in R22, SREG
+		push R22
+
+		ldi R22, 0
+		cpse lowerdigit, R22
+			rjmp dec_lower_digit
+		cpse upperdigit, R22
+			rjmp dec_upper_digit
+		rjmp end_dec_duty_cycle
+
+	dec_lower_digit:
+		dec lowerdigit
+		rjmp end_dec_duty_cycle
+
+	dec_upper_digit:
+		dec upperdigit
+		ldi lowerdigit, 9
+
+	end_dec_duty_cycle:
+		pop R22
+		out SREG, R22
+		pop R22
+		ret
+
 		;used to debounce rpg
 delay_short:
+		push R30
+		push R31
+
 		.equ count2 = 0x2710
 		ldi r30, low(count2)
 		ldi r31, high(count2)
 	d3:
 		sbiw r31:r30, 1	
 		brne d3
+
+		pop R31
+		pop R30
 		ret
 
 ;looks at input from rpg to tell if it is rotating
 check_rpg_inputs:
+		push R24
+		push R25
 		in R24, PINB
 		andi R24, 0x03
 		lsl R24
@@ -222,10 +360,13 @@ check_rpg_inputs:
 			rjmp check_inputs_end
 		rcall inc_fan_speed
 	check_inputs_end:
+		pop R25
+		pop R24
 		ret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;Timed Delays;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 timer_delay_200us:
+		push R22
 		in R22, SREG
 		push R22
 		push R28
@@ -252,9 +393,11 @@ timer_delay_200us:
 		pop R28
 		pop R22
 		out SREG, R22
+		pop R22
 		ret
 
 timer_delay_4ms:
+		push R22
 		in R22, SREG
 		push R22
 		push R28
@@ -281,9 +424,11 @@ timer_delay_4ms:
 		pop R28
 		pop R22
 		out SREG, R22
+		pop R22
 		ret
 
 timer_delay_100ms:
+		push R22
 		in R22, SREG
 		push R22
 		push R28
@@ -299,16 +444,17 @@ timer_delay_100ms:
 		pop R28
 		pop R22
 		out SREG, R22
+		pop R22
 		ret
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;Interupt Routines;;;;;;;;;;;;;;;;;;;;;;;
 
 isr_pcint0:
+	in R19, PINB
 	push R28
 	in R28, SREG
 	push R28
-	cli
 
 	sbic PINB, 2
 		rjmp check_rpg
@@ -324,11 +470,12 @@ isr_pcint0:
 	rjmp isr_pcint0_end
 
 	check_rpg:
-	rcall check_rpg_inputs
-
+	ldi R28, 0x00
+	cpse fanState, R28
+		rcall check_rpg_inputs
 
 	isr_pcint0_end:
-	sei
+	ldi updateDisplay, 0x01
 	pop R28
 	out SREG, R28
 	pop R28
